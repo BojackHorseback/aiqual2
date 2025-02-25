@@ -9,19 +9,37 @@ def get_box_client():
     client_id = os.getenv('BOX_CLIENT_ID')
     client_secret = os.getenv('BOX_CLIENT_SECRET')
     developer_token = os.getenv('BOX_DEVELOPER_TOKEN')
-    private_key = os.getenv('BOX_PRIVATE_KEY').replace(r'\n', '\n')
+    private_key = os.getenv('BOX_PRIVATE_KEY')  # Ensure newlines are properly handled
     passphrase = os.getenv('BOX_PASSPHRASE')
 
+    # Debugging: Check the environment variables
+    print(f"Client ID: {client_id}")
+    print(f"Client Secret: {client_secret}")
+    print(f"Developer Token: {developer_token}")
+    print(f"Passphrase: {passphrase is not None}")  # Checking if passphrase is loaded
+
+    # Ensure private_key is correctly loaded (and debug the private_key if needed)
+    if private_key:
+        private_key = private_key.replace(r'\n', '\n')
+    else:
+        print("Private key is not loaded properly")
+
+    print(f"Private Key: {'Loaded' if private_key else 'Not Loaded'}")
+
     # Setup JWT auth with the loaded credentials
-    auth = JWTAuth(
-        client_id=client_id,
-        client_secret=client_secret,
-        developer_token=developer_token,
-        private_key_data=private_key,
-        passphrase=passphrase
-    )
-    
-    return Client(auth)
+    try:
+        auth = JWTAuth(
+            client_id=client_id,
+            client_secret=client_secret,
+            developer_token=developer_token,
+            private_key_data=private_key,
+            passphrase=passphrase
+        )
+        return Client(auth)
+    except Exception as e:
+        print(f"Error during JWTAuth setup: {str(e)}")
+        return None
+
 
 
 
@@ -83,6 +101,11 @@ def check_if_interview_completed(directory, username):
 def upload_to_box(file_path, folder_id="0"):
     """Upload or update file in Box folder."""
     client = get_box_client()
+    
+    if not client:
+        print("Client is None. Could not establish Box connection.")
+        return
+    
     folder = client.folder(folder_id)
     file_name = os.path.basename(file_path)
 
