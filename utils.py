@@ -2,6 +2,19 @@ import streamlit as st
 import hmac
 import time
 import os
+from boxsdk import JWTAuth, Client
+
+def get_box_client():
+    """Authenticate and return Box client using Streamlit secrets."""
+    auth = JWTAuth(
+        client_id=st.secrets["box"]["client_id"],
+        client_secret=st.secrets["box"]["client_secret"],
+        enterprise_id=st.secrets["box"]["enterprise_id"],
+        jwt_key_id=st.secrets["box"]["jwt_key_id"],
+        rsa_private_key_data=st.secrets["box"]["private_key"].encode(),
+        rsa_private_key_passphrase=st.secrets["box"]["passphrase"].encode(),
+    )
+    return Client(auth)
 
 
 # Password screen for dashboard (note: only very basic authentication!)
@@ -59,31 +72,38 @@ def check_if_interview_completed(directory, username):
         return False
 
 
-def save_interview_data(
-    username,
-    transcripts_directory,
-    times_directory,
-    file_name_addition_transcript="",
-    file_name_addition_time="",
-):
-    """Write interview data (transcript and time) to disk."""
+def upload_to_box(file_path, folder_id="0"):
+    """Upload or update file in Box folder."""
+    client = get_box_client()
+    folder = client.folder(folder_id)
+    file_name = os.path.basename(file_path)
 
-    # Store chat transcript
-    with open(
-        os.path.join(
-            transcripts_directory, f"{username}{file_name_addition_transcript}.txt"
-        ),
-        "w",
-    ) as t:
+    # Check if file exists in Box
+    existing_files = {item.name: item.id for item in folder.get_items()}
+
+    if file_name in existing_files:
+        file = client.file(existing_files[file_name])
+        file.update_contents(file_path)
+        print(f"Updated: {file_name}")
+    else:
+        folder.upload(file_path)
+        print(f"Uploaded: {file_name}")
+
+def save_interview_data(username, transcripts_directory, times_directory):
+    """Save transcript locally and upload to Box."""
+    transcript_file = os.path.join(transcripts_directory, f"{username}.txt")
+    time_file = os.path.join(times_directory, f"{username}.txt")
+
+    # Save locally
+    with open(transcript_file, "w") as t:
         for message in st.session_state.messages:
             t.write(f"{message['role']}: {message['content']}\n")
 
-    # Store file with start time and duration of interview
-    with open(
-        os.path.join(times_directory, f"{username}{file_name_addition_time}.txt"),
-        "w",
-    ) as d:
+    with open(time_file, "w") as d:
         duration = (time.time() - st.session_state.start_time) / 60
-        d.write(
-            f"Start time (UTC): {time.strftime('%d/%m/%Y %H:%M:%S', time.localtime(st.session_state.start_time))}\nInterview duration (minutes): {duration:.2f}"
-        )
+        d.write(f"Start: {time.strftime('%d/%m/%Y %H:%M:%S', time.localtime(st.session_state.start_time))}\n")
+        d.write(f"Duration: {duration:.2f} min\n")
+
+    # Upload to Box
+    upload_to_box(transcript_file, folder_id="306134958001")
+    upload_to_box(time_file, folder_id="306134958001")
