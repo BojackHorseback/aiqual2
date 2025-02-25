@@ -2,45 +2,29 @@ import streamlit as st
 import hmac
 import time
 import os
+import json
 from boxsdk import Client, JWTAuth
 
 def get_box_client():
-    """Initialize Box client with JWT Auth."""
-    # Load credentials from environment variables
-    client_id = os.getenv('BOX_CLIENT_ID')
-    client_secret = os.getenv('BOX_CLIENT_SECRET')
-    developer_token = os.getenv('BOX_DEVELOPER_TOKEN')
-    private_key = os.getenv('BOX_PRIVATE_KEY')  # Ensure newlines are properly handled
-    passphrase = os.getenv('BOX_PASSPHRASE')
-
-    # Debugging: Check the environment variables
-    print(f"Client ID: {client_id}")
-    print(f"Client Secret: {client_secret}")
-    print(f"Developer Token: {developer_token}")
-    print(f"Passphrase: {passphrase is not None}")  # Checking if passphrase is loaded
-
-    # Ensure private_key is correctly loaded (and debug the private_key if needed)
-    if private_key:
-        private_key = private_key.replace(r'\n', '\n')
-    else:
-        print("Private key is not loaded properly")
-
-    print(f"Private Key: {'Loaded' if private_key else 'Not Loaded'}")
-
-    # Setup JWT auth with the loaded credentials
+    """Initialize Box client using JWT authentication."""
     try:
-        auth = JWTAuth(
-            client_id=client_id,
-            client_secret=client_secret,
-            developer_token=developer_token,
-            private_key_data=private_key,
-            passphrase=passphrase
-        )
-        return Client(auth)
-    except Exception as e:
-        print(f"Error during JWTAuth setup: {str(e)}")
-        return None
+        # Load Box config from a JSON file
+        config_path = os.getenv('BOX_CONFIG_PATH')  # Ensure this is set in Render
+        if not config_path or not os.path.exists(config_path):
+            print(f"Box config file not found at: {config_path}")
+            return None
 
+        auth = JWTAuth.from_settings_file(config_path)
+        client = Client(auth)
+
+        # Test authentication by getting the current user
+        user = client.user().get()
+        print(f"Authenticated as: {user.login}")
+
+        return client
+    except Exception as e:
+        print(f"Error initializing Box client with JWT: {str(e)}")
+        return None
 
 def check_password():
     """Returns 'True' if the user has entered a correct password."""
