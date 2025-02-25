@@ -5,31 +5,34 @@ import os
 import json
 from boxsdk import Client, JWTAuth
 
+import os
+import json
+from boxsdk import JWTAuth, Client
+
 def get_box_client():
-    """Initialize Box client using JWT authentication."""
+    """Initialize Box client using JWT authentication from an environment variable."""
     try:
-        # Load Box config from a JSON file
-box_config_json = os.getenv("BOX_CONFIG_JSON")
-if not box_config_json:
-    print("ERROR: BOX_CONFIG_JSON environment variable is missing.")
-    return None
+        box_config_json = os.getenv("BOX_CONFIG_JSON")
+        if not box_config_json:
+            print("ERROR: BOX_CONFIG_JSON environment variable is missing.")
+            return None
 
-try:
-    config_data = json.loads(box_config_json)
-    auth = JWTAuth.from_settings_dictionary(config_data)
-    return Client(auth)
-except json.JSONDecodeError as e:
-    print(f"ERROR: Failed to parse BOX_CONFIG_JSON - {str(e)}")
-    return None
+        config_data = json.loads(box_config_json)  # Parse JSON string
+        auth = JWTAuth.from_settings_dictionary(config_data)
+        client = Client(auth)
 
-        # Test authentication by getting the current user
+        # Test authentication
         user = client.user().get()
         print(f"Authenticated as: {user.login}")
 
         return client
-    except Exception as e:
-        print(f"Error initializing Box client with JWT: {str(e)}")
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Failed to parse BOX_CONFIG_JSON - {str(e)}")
         return None
+    except Exception as e:
+        print(f"ERROR: Failed to initialize Box client - {str(e)}")
+        return None
+
 
 def check_password():
     """Returns 'True' if the user has entered a correct password."""
