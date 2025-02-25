@@ -116,5 +116,4 @@ def upload_to_box(file_path, folder_id="306134958001"):
         print(f"SUCCESS: Uploaded {file_name}")
     except Exception as e:
         print(f"ERROR: Failed to upload {file_name} - {str(e)}")
-
-            print(f"Error uploading file: {e}")
+        print(f"Error uploading file: {e}")
