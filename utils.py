@@ -9,13 +9,18 @@ def get_box_client():
     """Initialize Box client using JWT authentication."""
     try:
         # Load Box config from a JSON file
-        config_path = os.getenv('BOX_CONFIG_PATH')  # Ensure this is set in Render
-        if not config_path or not os.path.exists(config_path):
-            print(f"Box config file not found at: {config_path}")
-            return None
+box_config_json = os.getenv("BOX_CONFIG_JSON")
+if not box_config_json:
+    print("ERROR: BOX_CONFIG_JSON environment variable is missing.")
+    return None
 
-        auth = JWTAuth.from_settings_file(config_path)
-        client = Client(auth)
+try:
+    config_data = json.loads(box_config_json)
+    auth = JWTAuth.from_settings_dictionary(config_data)
+    return Client(auth)
+except json.JSONDecodeError as e:
+    print(f"ERROR: Failed to parse BOX_CONFIG_JSON - {str(e)}")
+    return None
 
         # Test authentication by getting the current user
         user = client.user().get()
