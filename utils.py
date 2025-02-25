@@ -5,6 +5,17 @@ import os
 import json
 from boxsdk import JWTAuth, Client
 
+box_config_json = os.getenv("BOX_CONFIG_JSON")
+
+if not box_config_json:
+    print("❌ ERROR: BOX_CONFIG_JSON is missing or empty.")
+    return None
+
+print(f"✅ BOX_CONFIG_JSON Loaded, Length: {len(box_config_json)}")  # Print length instead of full JSON
+
+
+
+
 def get_box_client():
     """Initialize Box client using JWT authentication from environment variable."""
     try:
