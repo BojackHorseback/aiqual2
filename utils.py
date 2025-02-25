@@ -95,35 +95,26 @@ def save_interview_data(
 
 
 def upload_to_box(file_path, folder_id="306134958001"):
-    """Upload or update file in Box folder."""
+    """Upload file to Box and debug."""
     client = get_box_client()
     
     if not client:
-        print("Client is None. Could not establish Box connection.")
+        print("ERROR: Box client is None. Authentication failed.")
         return
     
     folder = client.folder(folder_id)
     file_name = os.path.basename(file_path)
 
     if not os.path.exists(file_path):
-        print(f"File does not exist locally: {file_path}")
+        print(f"ERROR: File does not exist locally: {file_path}")
         return
 
-    print(f"Attempting to upload file: {file_name} to folder ID: {folder_id}")
+    print(f"Uploading file: {file_name} to folder ID: {folder_id}")
     
-    # Check if file exists in Box
-    existing_files = {item.name: item.id for item in folder.get_items()}
+    try:
+        folder.upload(file_path)
+        print(f"SUCCESS: Uploaded {file_name}")
+    except Exception as e:
+        print(f"ERROR: Failed to upload {file_name} - {str(e)}")
 
-    if file_name in existing_files:
-        file = client.file(existing_files[file_name])
-        try:
-            file.update_contents(file_path)
-            print(f"Updated: {file_name}")
-        except Exception as e:
-            print(f"Error updating file: {e}")
-    else:
-        try:
-            folder.upload(file_path)
-            print(f"Uploaded: {file_name}")
-        except Exception as e:
             print(f"Error uploading file: {e}")
