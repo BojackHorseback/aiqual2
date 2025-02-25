@@ -5,13 +5,6 @@ import os
 import json
 from boxsdk import JWTAuth, Client
 
-box_config_json = os.getenv("BOX_CONFIG_JSON")
-
-if not box_config_json:
-    print(" ERROR: BOX_CONFIG_JSON is missing or empty.")
-    return None
-
-print(f" BOX_CONFIG_JSON Loaded, Length: {len(box_config_json)}")  # Print length instead of full JSON
 def get_box_client():
     """Initialize Box client using JWT Auth from a secret file."""
     try:
@@ -46,7 +39,6 @@ def get_box_client():
     except Exception as e:
         print(f"ERROR: Failed to initialize Box client - {str(e)}")
         return None  
-
 
 def check_password():
     """Returns 'True' if the user has entered a correct password."""
@@ -148,4 +140,3 @@ def upload_to_box(file_path, folder_id="306134958001"):
 
     except Exception as e:
         print(f"ERROR: Failed to upload {file_name} - {str(e)}")
-
