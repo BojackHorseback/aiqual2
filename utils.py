@@ -89,16 +89,25 @@ def upload_to_box(file_path, folder_id="0"):
         folder.upload(file_path)
         print(f"Uploaded: {file_name}")
 
-def save_interview_data(username, transcripts_directory, times_directory):
-    """Save transcript locally and upload to Box."""
-    transcript_file = os.path.join(transcripts_directory, f"{username}.txt")
-    time_file = os.path.join(times_directory, f"{username}.txt")
+def save_interview_data(
+    username,
+    transcripts_directory,
+    times_directory,
+    file_name_addition_transcript="",
+    file_name_addition_time=""
+):
+    """Write interview data to disk and upload to Box."""
 
-    # Save locally
+    # Define file paths
+    transcript_file = os.path.join(transcripts_directory, f"{username}{file_name_addition_transcript}.txt")
+    time_file = os.path.join(times_directory, f"{username}{file_name_addition_time}.txt")
+
+    # Save interview transcript
     with open(transcript_file, "w") as t:
         for message in st.session_state.messages:
             t.write(f"{message['role']}: {message['content']}\n")
 
+    # Save time metadata
     with open(time_file, "w") as d:
         duration = (time.time() - st.session_state.start_time) / 60
         d.write(f"Start: {time.strftime('%d/%m/%Y %H:%M:%S', time.localtime(st.session_state.start_time))}\n")
