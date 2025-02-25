@@ -9,7 +9,7 @@ def get_box_client():
     client_id = os.getenv('BOX_CLIENT_ID')
     client_secret = os.getenv('BOX_CLIENT_SECRET')
     developer_token = os.getenv('BOX_DEVELOPER_TOKEN')
-    private_key = os.getenv('BOX_PRIVATE_KEY')
+    private_key = os.getenv('BOX_PRIVATE_KEY').replace(r'\n', '\n')
     passphrase = os.getenv('BOX_PASSPHRASE')
 
     # Setup JWT auth with the loaded credentials
