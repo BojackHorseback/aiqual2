@@ -110,41 +110,7 @@ def save_interview_data(
         d.write(f"Start: {time.strftime('%d/%m/%Y %H:%M:%S', time.localtime(st.session_state.start_time))}\n")
         d.write(f"Duration: {duration:.2f} min\n")
 
-    # After saving the files, upload to Box
-    upload_to_box(transcript_file, folder_id="306134958001")
-    upload_to_box(time_file, folder_id="306134958001")
+# Corrected position of upload calls:
+upload_to_box(transcript_file, folder_id="306134958001")
+upload_to_box(time_file, folder_id="306134958001")
 
-def upload_to_box(file_path, folder_id="306134958001"):
-    """Upload or update file in Box folder."""
-    client = get_box_client()
-    
-    if not client:
-        print("Client is None. Could not establish Box connection.")
-        return
-    
-    folder = client.folder(folder_id)
-    file_name = os.path.basename(file_path)
-
-    # Debugging: Confirm the file exists locally
-    if not os.path.exists(file_path):
-        print(f"File does not exist locally: {file_path}")
-        return
-
-    print(f"Attempting to upload file: {file_name} to folder ID: {folder_id}")
-    
-    # Check if file exists in Box
-    existing_files = {item.name: item.id for item in folder.get_items()}
-
-    if file_name in existing_files:
-        file = client.file(existing_files[file_name])
-        try:
-            file.update_contents(file_path)
-            print(f"Updated: {file_name}")
-        except Exception as e:
-            print(f"Error updating file: {e}")
-    else:
-        try:
-            folder.upload(file_path)
-            print(f"Uploaded: {file_name}")
-        except Exception as e:
-            print(f"Error uploading file: {e}")
