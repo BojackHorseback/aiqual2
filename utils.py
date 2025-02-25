@@ -6,6 +6,11 @@ from boxsdk import JWTAuth, Client
 
 def get_box_client():
     """Authenticate and return Box client using Streamlit secrets."""
+    
+    # Debugging: Check if credentials are loading
+    if "box" not in st.secrets:
+        raise ValueError("Box credentials not found in Streamlit secrets!")
+
     auth = JWTAuth(
         client_id=st.secrets["box"]["client_id"],
         client_secret=st.secrets["box"]["client_secret"],
