@@ -41,7 +41,6 @@ def get_box_client():
         return None
 
 # Password screen for dashboard (note: only very basic authentication!)
-# Based on https://docs.streamlit.io/knowledge-base/deploy/authentication-without-sso
 def check_password():
     """Returns 'True' if the user has entered a correct password."""
 
@@ -61,6 +60,7 @@ def check_password():
             st.session_state.password_correct = True
         else:
             st.session_state.password_correct = False
+
         del st.session_state.password  # don't store password in session state
 
     # Return True, username if password was already entered correctly before
@@ -75,7 +75,9 @@ def check_password():
 
 def check_if_interview_completed(directory, username):
     """Check if interview transcript/time file exists which signals that interview was completed."""
+    # Test account has multiple interview attempts
     if username != "testaccount":
+        # Check if file exists
         try:
             with open(os.path.join(directory, f"{username}.txt"), "r") as _:
                 return True
@@ -108,7 +110,7 @@ def save_interview_data(
         d.write(f"Start: {time.strftime('%d/%m/%Y %H:%M:%S', time.localtime(st.session_state.start_time))}\n")
         d.write(f"Duration: {duration:.2f} min\n")
 
-    # Upload to Box
+    # After saving the files, upload to Box
     upload_to_box(transcript_file, folder_id="306134958001")
     upload_to_box(time_file, folder_id="306134958001")
 
