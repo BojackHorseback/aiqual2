@@ -23,6 +23,13 @@ def get_box_client():
 
         print("JSON loaded successfully.")
 
+        # Ensure the private key is formatted correctly (handling the newlines)
+        private_key = config_data['boxAppSettings']['appAuth']['privateKey']
+        private_key = private_key.replace('\\n', '\n')  # Restore newlines from escaped format
+
+        # Update the config_data with corrected private key
+        config_data['boxAppSettings']['appAuth']['privateKey'] = private_key
+
         # Authenticate using JWT
         auth = JWTAuth.from_settings_dictionary(config_data)
         client = Client(auth)
@@ -38,7 +45,7 @@ def get_box_client():
         return None
     except Exception as e:
         print(f"ERROR: Failed to initialize Box client - {str(e)}")
-        return None  
+        return None
 
 def check_password():
     """Returns 'True' if the user has entered a correct password."""
