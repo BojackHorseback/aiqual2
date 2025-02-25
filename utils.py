@@ -2,24 +2,22 @@ import streamlit as st
 import hmac
 import time
 import os
-from boxsdk import JWTAuth, Client
+from boxsdk import OAuth2, Client
 
 def get_box_client():
-    """Authenticate and return Box client using Streamlit secrets."""
+    """Authenticate using OAuth2 Client Credentials and return Box client."""
     
-    # Debugging: Check if credentials are loading
-    if "box" not in st.secrets:
-        raise ValueError("Box credentials not found in Streamlit secrets!")
+    # Debug: Print available secrets
+    if "box" not in st.secrets or not all(key in st.secrets["box"] for key in ["client_id", "client_secret"]):
+        raise ValueError("❌ Box credentials are missing from Streamlit secrets!")
 
-    auth = JWTAuth(
+    auth = OAuth2(
         client_id=st.secrets["box"]["client_id"],
         client_secret=st.secrets["box"]["client_secret"],
-        enterprise_id=st.secrets["box"]["enterprise_id"],
-        jwt_key_id=st.secrets["box"]["jwt_key_id"],
-        rsa_private_key_data=st.secrets["box"]["private_key"].encode(),
-        rsa_private_key_passphrase=st.secrets["box"]["passphrase"].encode(),
     )
+
     return Client(auth)
+
 
 
 # Password screen for dashboard (note: only very basic authentication!)
