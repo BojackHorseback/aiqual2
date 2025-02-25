@@ -3,28 +3,28 @@ import hmac
 import time
 import os
 import json
-from boxsdk import Client, JWTAuth
-
-import os
-import json
-from boxsdk import JWTAuth, Client
-
-import os
-import json
 from boxsdk import JWTAuth, Client
 
 def get_box_client():
-    """Initialize Box client using JWT authentication from an environment variable."""
+    """Initialize Box client using JWT authentication from environment variable."""
     try:
         box_config_json = os.getenv("BOX_CONFIG_JSON")
+
         if not box_config_json:
-            print("ERROR: BOX_CONFIG_JSON environment variable is missing.")
+            print("ERROR: BOX_CONFIG_JSON environment variable is missing or empty.")
             return None
+        
+        # Fix \n issue for private key
+        box_config_json = box_config_json.replace("\\n", "\n")  # Convert escaped newlines to real newlines
+        
+        # Debug print to verify if JSON is loading correctly (print only a part)
+        print(f"BOX_CONFIG_JSON first 200 chars: {box_config_json[:200]}")  
 
-        print(f"BOX_CONFIG_JSON: {box_config_json[:100]}")  # For debugging
-        config_data = json.loads(box_config_json)
-        print(f"Config data loaded successfully: {config_data}")
+        config_data = json.loads(box_config_json)  # Load JSON
 
+        print("SUCCESS: JSON loaded correctly.")
+
+        # Authenticate with Box using JWT
         auth = JWTAuth.from_settings_dictionary(config_data)
         client = Client(auth)
 
@@ -35,12 +35,11 @@ def get_box_client():
         return client
 
     except json.JSONDecodeError as e:
-        print(f"ERROR: Failed to parse JSON: {str(e)}")
+        print(f"ERROR: JSON parsing failed - {str(e)}")
         return None
     except Exception as e:
         print(f"ERROR: Failed to initialize Box client - {str(e)}")
         return None
-
 
 def check_password():
     """Returns 'True' if the user has entered a correct password."""
