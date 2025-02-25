@@ -9,6 +9,10 @@ import os
 import json
 from boxsdk import JWTAuth, Client
 
+import os
+import json
+from boxsdk import JWTAuth, Client
+
 def get_box_client():
     """Initialize Box client using JWT authentication from an environment variable."""
     try:
@@ -17,7 +21,10 @@ def get_box_client():
             print("ERROR: BOX_CONFIG_JSON environment variable is missing.")
             return None
 
-        config_data = json.loads(box_config_json)  # Parse JSON string
+        print(f"BOX_CONFIG_JSON: {box_config_json[:100]}")  # For debugging
+        config_data = json.loads(box_config_json)
+        print(f"Config data loaded successfully: {config_data}")
+
         auth = JWTAuth.from_settings_dictionary(config_data)
         client = Client(auth)
 
@@ -26,8 +33,9 @@ def get_box_client():
         print(f"Authenticated as: {user.login}")
 
         return client
+
     except json.JSONDecodeError as e:
-        print(f"ERROR: Failed to parse BOX_CONFIG_JSON - {str(e)}")
+        print(f"ERROR: Failed to parse JSON: {str(e)}")
         return None
     except Exception as e:
         print(f"ERROR: Failed to initialize Box client - {str(e)}")
