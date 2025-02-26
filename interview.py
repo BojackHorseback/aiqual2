@@ -17,7 +17,7 @@ from google.oauth2.service_account import Credentials
 CREDENTIALS_FILE = "/etc/secrets/credentials.json"  # Update for Render secret file
 
 # Define the Google Drive folder ID where you want to upload files
-FOLDER_ID = "YOUR_GOOGLE_DRIVE_FOLDER_ID"  # Replace with actual Google Drive folder ID
+FOLDER_ID = "1tR_afXFbueJStnuDtOF-iW92LgLpZP77"  # Replace with actual Google Drive folder ID
 
 # Authenticate using a Service Account
 def authenticate_google_drive():
