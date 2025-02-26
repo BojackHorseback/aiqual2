@@ -42,18 +42,16 @@ def upload_file_to_drive(service, file_path, file_name, mimetype='text/plain'):
     file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
     return file['id']
 
-def save_interview_data_to_drive(username, transcripts_directory, times_directory):
-    """Save transcript and time data to Google Drive."""
-    # Prepare file paths
-    transcript_file = os.path.join(transcripts_directory, f"{username}.txt")
-    time_file = os.path.join(times_directory, f"{username}.txt")
+# Store first backup files to record who started the interview
+save_interview_data_to_drive(
+    username=st.session_state.username,
+    transcripts_directory=config.BACKUPS_DIRECTORY,
+    times_directory=config.BACKUPS_DIRECTORY,
+    file_name_addition_transcript=f"_transcript_started_{st.session_state.start_time_file_names}",
+    file_name_addition_time=f"_time_started_{st.session_state.start_time_file_names}",
+)
 
-    # Authenticate with Google Drive
-    service = authenticate_google_drive()
 
-    # Upload files to Google Drive
-    upload_file_to_drive(service, transcript_file, f"{username}_transcript.txt")
-    upload_file_to_drive(service, time_file, f"{username}_time.txt")
 
 
 # Password screen for dashboard (note: only very basic authentication!)
