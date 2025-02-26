@@ -3,49 +3,9 @@ import hmac
 import time
 import os
 import json
-from boxsdk import JWTAuth, Client
-
-def get_box_client():
-    """Initialize Box client using JWT Auth from a secret file."""
-    try:
-        # Get the file path for Box config
-        box_config_path = "/etc/secrets/box_config.json"
-
-        if not os.path.exists(box_config_path):
-            print(f"ERROR: Config file not found at {box_config_path}")
-            return None  # Return None if the file doesn't exist
-
-        print(f"Loading Box config from: {box_config_path}")
-
-        # Read and parse JSON config file
-        with open(box_config_path, "r") as f:
-            config_data = json.load(f)
-
-        print("JSON loaded successfully.")
-
-        # Ensure the private key is formatted correctly (handling the newlines)
-        private_key = config_data['boxAppSettings']['appAuth']['privateKey']
-        private_key = private_key.replace('\\n', '\n')  # Restore newlines from escaped format
-
-        # Update the config_data with corrected private key
-        config_data['boxAppSettings']['appAuth']['privateKey'] = private_key
-
-        # Authenticate using JWT
-        auth = JWTAuth.from_settings_dictionary(config_data)
-        client = Client(auth)
-
-        # Verify authentication by fetching user details
-        user = client.user().get()
-        print(f"Authenticated as: {user.login}")
-
-        return client
-
-    except json.JSONDecodeError as e:
-        print(f"ERROR: JSON parsing failed - {str(e)}")
-        return None
-    except Exception as e:
-        print(f"ERROR: Failed to initialize Box client - {str(e)}")
-        return None
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google.oauth2.service_account import Credentials
 
 def check_password():
     """Returns 'True' if the user has entered a correct password."""
@@ -97,7 +57,7 @@ def save_interview_data(
     file_name_addition_transcript="",
     file_name_addition_time=""
 ):
-    """Write interview data to disk and upload to Box."""
+    """Write interview data to disk and upload to Google Drive."""
     transcript_file = os.path.join(transcripts_directory, f"{username}{file_name_addition_transcript}.txt")
     time_file = os.path.join(times_directory, f"{username}{file_name_addition_time}.txt")
 
@@ -110,40 +70,38 @@ def save_interview_data(
         d.write(f"Start: {time.strftime('%d/%m/%Y %H:%M:%S', time.localtime(st.session_state.start_time))}\n")
         d.write(f"Duration: {duration:.2f} min\n")
 
-    # Upload the files to Box
-    upload_to_box(transcript_file)
-    upload_to_box(time_file)
+    # Upload the files to Google Drive
+    upload_to_google_drive(transcript_file)
+    upload_to_google_drive(time_file)
 
 
-def upload_to_box(file_path, folder_id="306134958001"):
-    """Upload file to Box, handling overwrites."""
-    client = get_box_client()
-    
-    if not client:
-        print("ERROR: Box client is None. Authentication failed.")
-        return
-    
-    folder = client.folder(folder_id)
+def authenticate_google_drive():
+    """Authenticate and return Google Drive service."""
+    CREDENTIALS_FILE = "/etc/secrets/google_drive_credentials.json"
+    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=["https://www.googleapis.com/auth/drive.file"])
+    service = build("drive", "v3", credentials=creds)
+    return service
+
+
+def upload_to_google_drive(file_path, folder_id="YOUR_GOOGLE_DRIVE_FOLDER_ID"):
+    """Upload file to Google Drive, handling overwrites."""
+    service = authenticate_google_drive()
     file_name = os.path.basename(file_path)
 
-    if not os.path.exists(file_path):
-        print(f"ERROR: File does not exist locally: {file_path}")
-        return
-
-    print(f"Uploading file: {file_name} to folder ID: {folder_id}")
+    file_metadata = {
+        "name": file_name,
+        "parents": [folder_id]
+    }
+    media = MediaFileUpload(file_path, resumable=True)
 
     try:
-        # Check if the file already exists in Box
-        existing_files = {item.name: item.id for item in folder.get_items()}
-        
-        if file_name in existing_files:
-            file_id = existing_files[file_name]
-            file = client.file(file_id)
-            file.update_contents(file_path)
+        existing_files = service.files().list(q=f"name='{file_name}' and '{folder_id}' in parents", fields="files(id)").execute()
+        if existing_files.get("files"):
+            file_id = existing_files["files"][0]["id"]
+            service.files().update(fileId=file_id, media_body=media).execute()
             print(f"Updated: {file_name}")
         else:
-            folder.upload(file_path)
+            service.files().create(body=file_metadata, media_body=media, fields="id").execute()
             print(f"Uploaded: {file_name}")
-
     except Exception as e:
         print(f"ERROR: Failed to upload {file_name} - {str(e)}")
