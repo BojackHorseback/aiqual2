@@ -7,7 +7,48 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
-import streamlit as st
+from googleapiclient.http import MediaFileUpload
+
+def save_interview_data_to_drive(username, transcript_dir, time_dir):
+    """Uploads interview transcript and time data to Google Drive."""
+    # Authenticate with Google Drive
+    service = authenticate_google_drive()
+
+    # Define the folder ID where files will be uploaded
+    folder_id = 'your_google_drive_folder_id'  # Replace with your Google Drive folder ID
+
+    # Define file paths
+    transcript_file = os.path.join(transcript_dir, f"{username}.txt")
+    time_file = os.path.join(time_dir, f"{username}.txt")
+
+    # Check if the transcript file exists
+    if os.path.exists(transcript_file):
+        # Upload the transcript file
+        media = MediaFileUpload(transcript_file, mimetype='text/plain')
+        request = service.files().create(
+            media_body=media,
+            body={
+                'name': f'{username}_transcript.txt',
+                'parents': [folder_id]  # Upload to a specific folder
+            }
+        )
+        request.execute()
+
+    # Check if the time file exists
+    if os.path.exists(time_file):
+        # Upload the time file
+        media = MediaFileUpload(time_file, mimetype='text/plain')
+        request = service.files().create(
+            media_body=media,
+            body={
+                'name': f'{username}_time.txt',
+                'parents': [folder_id]  # Upload to a specific folder
+            }
+        )
+        request.execute()
+
+    print(f"Uploaded {username}'s transcript and time to Google Drive.")
+
 
 # If modifying Google Drive, ensure the necessary permissions are granted (e.g., write access).
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
@@ -113,32 +154,3 @@ def check_if_interview_completed(directory, username):
 
         return False
 
-
-def save_interview_data_to_drive(
-    username,
-    transcripts_directory,
-    times_directory,
-    file_name_addition_transcript="",
-    file_name_addition_time="",
-):
-    """Write interview data (transcript and time) to disk."""
-
-    # Store chat transcript
-    with open(
-        os.path.join(
-            transcripts_directory, f"{username}{file_name_addition_transcript}.txt"
-        ),
-        "w",
-    ) as t:
-        for message in st.session_state.messages:
-            t.write(f"{message['role']}: {message['content']}\n")
-
-    # Store file with start time and duration of interview
-    with open(
-        os.path.join(times_directory, f"{username}{file_name_addition_time}.txt"),
-        "w",
-    ) as d:
-        duration = (time.time() - st.session_state.start_time) / 60
-        d.write(
-            f"Start time (UTC): {time.strftime('%d/%m/%Y %H:%M:%S', time.localtime(st.session_state.start_time))}\nInterview duration (minutes): {duration:.2f}"
-        )
