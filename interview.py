@@ -32,9 +32,15 @@ if config.LOGINS:
     if not pwd_correct:
         st.stop()
     else:
-        st.session_state.username = username
+        st.session_state.username = username  # Set username after authentication
 else:
     st.session_state.username = "testaccount"
+
+# Ensure the username is initialized
+if "username" not in st.session_state:
+    st.session_state.username = "default_user"  # Fallback username if not authenticated
+
+
 
 # Create directories if they do not already exist
 if not os.path.exists(config.TRANSCRIPTS_DIRECTORY):
