@@ -16,8 +16,9 @@ def authenticate_google_drive():
     """Authenticate with Google Drive API and return service."""
     SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
-    # Check if the token already exists in persistent storage
-    token_path = "/mnt/data/token.json"
+    # Path to token.json stored in /etc/secrets/
+    token_path = "/etc/secrets/token.json"
+    
     if os.path.exists(token_path):
         creds = Credentials.from_authorized_user_file(token_path, SCOPES)
     else:
@@ -28,17 +29,16 @@ def authenticate_google_drive():
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    '/mnt/data/credentials.json', SCOPES
+                    '/mnt/data/credentials.json', SCOPES  # Assuming credentials.json is still stored in /mnt/data/
                 )
                 creds = flow.run_local_server(port=0)
 
-            # Save the credentials for the next run
+            # Save the credentials for the next run (you can also keep this in /etc/secrets if you prefer)
             with open(token_path, 'w') as token:
                 token.write(creds.to_json())
 
     service = build("drive", "v3", credentials=creds)
     return service
-
 
 def upload_file_to_drive(service, file_path, file_name, mimetype='text/plain'):
     """Upload a file to Google Drive."""
