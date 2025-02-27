@@ -106,9 +106,7 @@ if not st.session_state.messages:
     st.session_state.messages.append({"role": "assistant", "content": message_interviewer})
 
     # Store initial backup
-    transcript_file, time_file = save_interview_data(
-        st.session_state.username, config.BACKUPS_DIRECTORY, config.BACKUPS_DIRECTORY
-    )
+    save_interview_data(st.session_state.username, config.BACKUPS_DIRECTORY, config.BACKUPS_DIRECTORY)
 
 # Main chat logic
 if st.session_state.interview_active:
@@ -140,12 +138,10 @@ if st.session_state.interview_active:
             message_placeholder.markdown(message_interviewer)
             st.session_state.messages.append({"role": "assistant", "content": message_interviewer})
 
-            try:
-                transcript_file, time_file = save_interview_data(
-                    st.session_state.username, config.BACKUPS_DIRECTORY, config.BACKUPS_DIRECTORY
-                )
-            except:
-                pass
+            # Save interview responses
+            transcript_file, time_file = save_interview_data(
+                st.session_state.username, config.TRANSCRIPTS_DIRECTORY, config.TIMES_DIRECTORY
+            )
 
             for code in config.CLOSING_MESSAGES.keys():
                 if code in message_interviewer:
@@ -153,23 +149,19 @@ if st.session_state.interview_active:
                     st.session_state.interview_active = False
                     st.markdown(config.CLOSING_MESSAGES[code])
 
-                    # Save final transcript before uploading
+                    # Retry saving if needed
                     final_transcript_stored = False
                     retries = 0
-                    max_retries = 10
+                    max_retries = 5
                     while not final_transcript_stored and retries < max_retries:
-                        transcript_file, time_file = save_interview_data(
-                            st.session_state.username, config.TRANSCRIPTS_DIRECTORY, config.TIMES_DIRECTORY
-                        )
                         final_transcript_stored = check_if_interview_completed(config.TRANSCRIPTS_DIRECTORY, st.session_state.username)
-                        time.sleep(0.5)  # Slight delay to prevent rapid retries
+                        time.sleep(0.5)
                         retries += 1
 
-                    if retries == max_retries:
-                        st.error("Error: Interview transcript could not be saved properly!")
+                    if not final_transcript_stored:
+                        st.error("Error: Interview transcript could not be saved properly.")
                     else:
                         try:
-                            # Upload the final saved transcript to Google Drive
                             save_interview_data_to_drive(transcript_file, time_file)
                             st.success("Interview transcript successfully uploaded to Google Drive!")
                         except Exception as e:
