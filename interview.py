@@ -167,6 +167,10 @@ if st.session_state.interview_active:
 
                     if retries == max_retries:
                         st.error("Error: Interview transcript could not be saved properly!")
-
-                    # Upload the final saved transcript to Google Drive
-                    save_interview_data_to_drive(transcript_file, time_file)
+                    else:
+                        try:
+                            # Upload the final saved transcript to Google Drive
+                            save_interview_data_to_drive(transcript_file, time_file)
+                            st.success("Interview transcript successfully uploaded to Google Drive!")
+                        except Exception as e:
+                            st.error(f"Upload to Google Drive failed: {str(e)}")
