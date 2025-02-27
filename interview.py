@@ -1,168 +1,110 @@
 import streamlit as st
-import time
-from utils import (
-    check_password,
-    check_if_interview_completed,
-    save_interview_data,
-    save_interview_data_to_drive,
-)
+import hmac
 import os
+import time
+import io
+from google.oauth2.service_account import Credentials  # FIXED import
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 import config
 
-# Load API library
-if "gpt" in config.MODEL.lower():
-    api = "openai"
-    from openai import OpenAI
-elif "claude" in config.MODEL.lower():
-    api = "anthropic"
-    import anthropic
-else:
-    raise ValueError("Model does not contain 'gpt' or 'claude'; unable to determine API.")
+# Initialize session state variables
+if "username" not in st.session_state:
+    st.session_state.username = None
 
-# Set page title and icon
-st.set_page_config(page_title="Interview", page_icon=config.AVATAR_INTERVIEWER)
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
+FOLDER_ID = "1tR_afXFbueJStnuDtOF-iW92LgLpZP77"  # Your Google Drive folder ID
 
-# Check if usernames and logins are enabled
-if config.LOGINS:
-    pwd_correct, username = check_password()
-    if not pwd_correct:
-        st.stop()
-    else:
-        st.session_state.username = username
-else:
-    st.session_state.username = "testaccount"
+def authenticate_google_drive():
+    """Authenticate using a service account and return the Google Drive service."""
+    key_path = "/etc/secrets/service-account.json"
 
-# Ensure username is initialized
-st.session_state.setdefault("username", "default_user")
+    if not os.path.exists(key_path):
+        raise FileNotFoundError("Google Drive credentials file not found!")
 
-# Create directories
-for directory in [config.TRANSCRIPTS_DIRECTORY, config.TIMES_DIRECTORY, config.BACKUPS_DIRECTORY]:
-    os.makedirs(directory, exist_ok=True)
+    creds = Credentials.from_service_account_file(key_path, scopes=SCOPES)
+    return build("drive", "v3", credentials=creds)
 
-# Initialize session state
-st.session_state.setdefault("interview_active", True)
-st.session_state.setdefault("messages", [])
 
-# Store start time
-if "start_time" not in st.session_state:
-    st.session_state.start_time = time.time()
-    st.session_state.start_time_file_names = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime(st.session_state.start_time))
+def upload_file_to_drive(service, file_path, file_name, mimetype='text/plain'):
+    """Upload a file to a specific Google Drive folder."""
+    file_metadata = {
+        'name': file_name,
+        'parents': [FOLDER_ID]  # Upload into the correct folder
+    }
 
-# Check if interview is already completed
-if check_if_interview_completed(config.TIMES_DIRECTORY, st.session_state.username) and not st.session_state.messages:
-    st.session_state.interview_active = False
-    st.markdown("Interview already completed.")
+    with io.FileIO(file_path, 'rb') as file_data:
+        media = MediaIoBaseUpload(file_data, mimetype=mimetype)
+        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
 
-# Add 'Quit' button
-col1, col2 = st.columns([0.85, 0.15])
-with col2:
-    if st.session_state.interview_active and st.button("Quit", help="End the interview."):
-        st.session_state.interview_active = False
-        st.session_state.messages.append({"role": "assistant", "content": "You have cancelled the interview."})
-        save_interview_data(st.session_state.username, config.TRANSCRIPTS_DIRECTORY, config.TIMES_DIRECTORY)
+    return file['id']
 
-# Display previous messages
-for message in st.session_state.messages[1:]:
-    avatar = config.AVATAR_INTERVIEWER if message["role"] == "assistant" else config.AVATAR_RESPONDENT
-    if not any(code in message["content"] for code in config.CLOSING_MESSAGES.keys()):
-        with st.chat_message(message["role"], avatar=avatar):
-            st.markdown(message["content"])
 
-# Load API client
-if api == "openai":
-    client = OpenAI(api_key=st.secrets["API_KEY"])
-    api_kwargs = {"stream": True}
-elif api == "anthropic":
-    client = anthropic.Anthropic(api_key=st.secrets["API_KEY"])
-    api_kwargs = {"system": config.SYSTEM_PROMPT}
+def save_interview_data_to_drive(transcript_path, time_path):
+    """Save interview transcript & timing data to Google Drive."""
+    
+    if st.session_state.username is None:
+        st.error("Username is not set!")
+        return
 
-api_kwargs.update({
-    "messages": st.session_state.messages,
-    "model": config.MODEL,
-    "max_tokens": config.MAX_OUTPUT_TOKENS,
-})
-if config.TEMPERATURE is not None:
-    api_kwargs["temperature"] = config.TEMPERATURE
+    service = authenticate_google_drive()  # Authenticate Drive API
 
-# Initialize first system message if chat is empty
-if not st.session_state.messages:
-    if api == "openai":
-        st.session_state.messages.append({"role": "system", "content": config.SYSTEM_PROMPT})
-        with st.chat_message("assistant", avatar=config.AVATAR_INTERVIEWER):
-            stream = client.chat.completions.create(**api_kwargs)
-            message_interviewer = st.write_stream(stream)
-    elif api == "anthropic":
-        st.session_state.messages.append({"role": "user", "content": "Hi"})
-        with st.chat_message("assistant", avatar=config.AVATAR_INTERVIEWER):
-            message_placeholder = st.empty()
-            message_interviewer = ""
-            with client.messages.stream(**api_kwargs) as stream:
-                for text_delta in stream.text_stream:
-                    if text_delta:
-                        message_interviewer += text_delta
-                    message_placeholder.markdown(message_interviewer + "▌")
-            message_placeholder.markdown(message_interviewer)
+    try:
+        transcript_id = upload_file_to_drive(service, transcript_path, os.path.basename(transcript_path))
+        time_id = upload_file_to_drive(service, time_path, os.path.basename(time_path))
+        st.success(f"Files uploaded! Transcript ID: {transcript_id}, Time ID: {time_id}")
+    except Exception as e:
+        st.error(f"Failed to upload files: {e}")
 
-    st.session_state.messages.append({"role": "assistant", "content": message_interviewer})
 
-    # Store initial backup
-    save_interview_data(st.session_state.username, config.BACKUPS_DIRECTORY, config.BACKUPS_DIRECTORY)
+def save_interview_data(username, transcripts_directory, times_directory, file_name_addition_transcript="", file_name_addition_time=""):
+    """Write interview data to disk."""
+    transcript_file = os.path.join(transcripts_directory, f"{username}{file_name_addition_transcript}.txt")
+    time_file = os.path.join(times_directory, f"{username}{file_name_addition_time}.txt")
 
-# Main chat logic
-if st.session_state.interview_active:
-    if message_respondent := st.chat_input("Your message here"):
-        st.session_state.messages.append({"role": "user", "content": message_respondent})
-        with st.chat_message("user", avatar=config.AVATAR_RESPONDENT):
-            st.markdown(message_respondent)
+    # Store chat transcript
+    with open(transcript_file, "w") as t:
+        for message in st.session_state.messages:
+            t.write(f"{message['role']}: {message['content']}\n")
 
-        with st.chat_message("assistant", avatar=config.AVATAR_INTERVIEWER):
-            message_placeholder = st.empty()
-            message_interviewer = ""
+    # Store interview start time and duration
+    with open(time_file, "w") as d:
+        duration = (time.time() - st.session_state.start_time) / 60
+        d.write(f"Start time (UTC): {time.strftime('%d/%m/%Y %H:%M:%S', time.localtime(st.session_state.start_time))}\n")
+        d.write(f"Interview duration (minutes): {duration:.2f}")
 
-            if api == "openai":
-                stream = client.chat.completions.create(**api_kwargs)
-                for message in stream:
-                    text_delta = message.choices[0].delta.content
-                    if text_delta:
-                        message_interviewer += text_delta
-                    if len(message_interviewer) > 5:
-                        message_placeholder.markdown(message_interviewer + "▌")
-            elif api == "anthropic":
-                with client.messages.stream(**api_kwargs) as stream:
-                    for text_delta in stream.text_stream:
-                        if text_delta:
-                            message_interviewer += text_delta
-                        if len(message_interviewer) > 5:
-                            message_placeholder.markdown(message_interviewer + "▌")
+    return transcript_file, time_file
 
-            message_placeholder.markdown(message_interviewer)
-            st.session_state.messages.append({"role": "assistant", "content": message_interviewer})
 
-            # Save interview responses
-            transcript_file, time_file = save_interview_data(
-                st.session_state.username, config.TRANSCRIPTS_DIRECTORY, config.TIMES_DIRECTORY
-            )
+def check_password():
+    """Returns 'True' if the user has entered a correct password."""
+    def login_form():
+        with st.form("Credentials"):
+            st.text_input("Username", key="username")
+            st.text_input("Password", type="password", key="password")
+            st.form_submit_button("Log in", on_click=password_entered)
 
-            for code in config.CLOSING_MESSAGES.keys():
-                if code in message_interviewer:
-                    st.session_state.messages.append({"role": "assistant", "content": message_interviewer})
-                    st.session_state.interview_active = False
-                    st.markdown(config.CLOSING_MESSAGES[code])
+    def password_entered():
+        if st.session_state.username in st.secrets.passwords and hmac.compare_digest(
+            st.session_state.password,
+            st.secrets.passwords[st.session_state.username],
+        ):
+            st.session_state.password_correct = True
+        else:
+            st.session_state.password_correct = False
+        del st.session_state.password  # Don't store password in session state
 
-                    # Retry saving if needed
-                    final_transcript_stored = False
-                    retries = 0
-                    max_retries = 5
-                    while not final_transcript_stored and retries < max_retries:
-                        final_transcript_stored = check_if_interview_completed(config.TRANSCRIPTS_DIRECTORY, st.session_state.username)
-                        time.sleep(0.5)
-                        retries += 1
+    if st.session_state.get("password_correct", False):
+        return True, st.session_state.username
 
-                    if not final_transcript_stored:
-                        st.error("Error: Interview transcript could not be saved properly.")
-                    else:
-                        try:
-                            save_interview_data_to_drive(transcript_file, time_file)
-                            st.success("Interview transcript successfully uploaded to Google Drive!")
-                        except Exception as e:
-                            st.error(f"Upload to Google Drive failed: {str(e)}")
+    login_form()
+    if "password_correct" in st.session_state:
+        st.error("User or password incorrect")
+    return False, st.session_state.username
+
+
+def check_if_interview_completed(directory, username):
+    """Check if interview transcript/time file exists."""
+    if username != "testaccount":
+        return os.path.exists(os.path.join(directory, f"{username}.txt"))
+    return False
