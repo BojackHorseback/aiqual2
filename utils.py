@@ -59,32 +59,17 @@ def save_interview_data(username, transcripts_directory, times_directory, file_n
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 def authenticate_google_drive():
-    """Authenticate with Google Drive API and return service."""
-    SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+    """Authenticate using a service account and return the Google Drive service."""
+    key_path = "/etc/secrets/service-account.json"  # Ensure this file exists in your Render environment
+    scopes = ["https://www.googleapis.com/auth/drive.file"]
 
-    # Path to token.json stored in /etc/secrets/
-    token_path = "/etc/secrets/token.json"
-    
-    if os.path.exists(token_path):
-        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
-    else:
-        # If token doesn't exist, run the OAuth flow
-        creds = None
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    '/mnt/data/credentials.json', SCOPES  # Assuming credentials.json is still stored in /mnt/data/
-                )
-                creds = flow.run_local_server(port=0)
+    if not os.path.exists(key_path):
+        raise FileNotFoundError("Google Drive credentials file not found!")
 
-            # Save the credentials for the next run (you can also keep this in /etc/secrets if you prefer)
-            with open(token_path, 'w') as token:
-                token.write(creds.to_json())
-
+    creds = Credentials.from_service_account_file(key_path, scopes=scopes)
     service = build("drive", "v3", credentials=creds)
     return service
+
 
 def upload_file_to_drive(service, file_path, file_name, mimetype='text/plain'):
     """Upload a file to Google Drive."""
