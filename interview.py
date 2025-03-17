@@ -3,7 +3,6 @@
 import streamlit as st
 import time
 from utils import (
-    check_if_interview_completed,
     save_interview_data,
     save_interview_data_to_drive,
 )
@@ -18,37 +17,20 @@ api = "openai"
 # Set page title and icon
 st.set_page_config(page_title="Interview - OpenAI", page_icon=config.AVATAR_INTERVIEWER)
 
-# Define Central Time (CT) timezone
+# Define Central Time and get current_datetime
 central_tz = pytz.timezone("America/Chicago")
-
-# Get current date and time in CT
 current_datetime = datetime.now(central_tz).strftime("%Y-%m-%d (%H:%M:%S)")
 
-# Set the username with date and time
-st.session_state.username = f"OpenAI - {current_datetime}"
+# Set the username with current_datetime
+st.session_state.username = f"OpenAI (Backup) - {current_datetime}"
 
-    
 # Create directories if they do not already exist
-for directory in [config.TRANSCRIPTS_DIRECTORY, config.TIMES_DIRECTORY, config.BACKUPS_DIRECTORY]:
+for directory in [config.TRANSCRIPTS_DIRECTORY, config.BACKUPS_DIRECTORY]:
     os.makedirs(directory, exist_ok=True)
 
 # Initialise session state
 st.session_state.setdefault("interview_active", True)
 st.session_state.setdefault("messages", [])
-
-
-
-
-# Check if interview previously completed
-interview_previously_completed = check_if_interview_completed(
-    config.TIMES_DIRECTORY, st.session_state.username
-    )
-
-# If app started but interview was previously completed
-if interview_previously_completed and not st.session_state.messages:
-    st.session_state.interview_active = False
-    completed_message = "Interview already completed."
-    
 
 # Add 'Quit' button to dashboard
 col1, col2 = st.columns([0.85, 0.15])
@@ -138,8 +120,6 @@ if not st.session_state.messages:
     save_interview_data(
         username=st.session_state.username,
         transcripts_directory=config.BACKUPS_DIRECTORY,
-        #times_directory=config.BACKUPS_DIRECTORY,
-
     )
 # Main chat if interview is active
 if st.session_state.interview_active:
@@ -184,7 +164,6 @@ if st.session_state.interview_active:
                     save_interview_data(
                         username=st.session_state.username,
                         transcripts_directory=config.BACKUPS_DIRECTORY,
-                       # times_directory=config.BACKUPS_DIRECTORY,
                     )
                 except:
                     pass
@@ -202,9 +181,8 @@ if st.session_state.interview_active:
                         save_interview_data(
                             username=st.session_state.username,
                             transcripts_directory=config.TRANSCRIPTS_DIRECTORY,
-                           # times_directory=config.TIMES_DIRECTORY,
                         )
-                        final_transcript_stored = check_if_interview_completed(config.TRANSCRIPTS_DIRECTORY, st.session_state.username)
+                       #final_transcript_stored = check_if_interview_completed(config.TRANSCRIPTS_DIRECTORY, st.session_state.username)
                         time.sleep(0.1)
                         retries += 1
 
@@ -213,5 +191,4 @@ if st.session_state.interview_active:
 
                     save_interview_data_to_drive(
                         os.path.join(config.TRANSCRIPTS_DIRECTORY, f"{st.session_state.username}.txt")
-
                     )
