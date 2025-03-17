@@ -48,12 +48,8 @@ for message in st.session_state.messages[1:]:
             st.markdown(message["content"])
 
 # Load API client
-if api == "openai":
-    client = OpenAI(api_key=st.secrets["API_KEY"])
-    api_kwargs = {"stream": True}
-elif api == "anthropic":
-    client = anthropic.Anthropic(api_key=st.secrets["API_KEY"])
-    api_kwargs = {"system": config.SYSTEM_PROMPT}
+client = OpenAI(api_key=st.secrets["API_KEY"])
+api_kwargs = {"stream": True}
 
 # API kwargs
 api_kwargs.update({
@@ -66,54 +62,23 @@ if config.TEMPERATURE is not None:
 
 # Initialize first system message if history is empty
 if not st.session_state.messages:
-    if api == "openai":
-        st.session_state.messages.append({"role": "system", "content": config.SYSTEM_PROMPT})
-        with st.chat_message("assistant", avatar=config.AVATAR_INTERVIEWER):
-            stream = client.chat.completions.create(**api_kwargs)
-            message_interviewer = st.write_stream(stream)
-
-    elif api == "anthropic":
-        st.session_state.messages.append({"role": "user", "content": "Hi"})
-        with st.chat_message("assistant", avatar=config.AVATAR_INTERVIEWER):
-            message_placeholder = st.empty()
-            message_interviewer = ""
-            with client.messages.stream(**api_kwargs) as stream:
-                for text_delta in stream.text_stream:
-                    if text_delta:
-                        message_interviewer += text_delta
-                    message_placeholder.markdown(message_interviewer + "▌")
-            message_placeholder.markdown(message_interviewer)
-
+    st.session_state.messages.append({"role": "system", "content": config.SYSTEM_PROMPT})
+    with st.chat_message("assistant", avatar=config.AVATAR_INTERVIEWER):
+        stream = client.chat.completions.create(**api_kwargs)
+        message_interviewer = st.write_stream(stream)
     st.session_state.messages.append({"role": "assistant", "content": message_interviewer})
 
 # In case the interview history is still empty, pass system prompt to model, and
 # generate and display its first message
 if not st.session_state.messages:
-
-    if api == "openai":
-
-        st.session_state.messages.append(
-            {"role": "system", "content": config.SYSTEM_PROMPT}
-        )
-        with st.chat_message("GPT4mini", avatar=config.AVATAR_INTERVIEWER):
-            stream = client.chat.completions.create(**api_kwargs)
-            message_interviewer = st.write_stream(stream)
-
-    elif api == "anthropic":
-
-        st.session_state.messages.append({"role": "user", "content": "Hi"})
-        with st.chat_message("GPT4mini", avatar=config.AVATAR_INTERVIEWER):
-            message_placeholder = st.empty()
-            message_interviewer = ""
-            with client.messages.stream(**api_kwargs) as stream:
-                for text_delta in stream.text_stream:
-                    if text_delta != None:
-                        message_interviewer += text_delta
-                    message_placeholder.markdown(message_interviewer + "▌")
-            message_placeholder.markdown(message_interviewer)
-
     st.session_state.messages.append(
-        {"role": "GPT4mini", "content": message_interviewer}
+        {"role": "system", "content": config.SYSTEM_PROMPT}
+    )
+    with st.chat_message("GPT4mini", avatar=config.AVATAR_INTERVIEWER):
+        stream = client.chat.completions.create(**api_kwargs)
+        message_interviewer = st.write_stream(stream)
+    st.session_state.messages.append(
+    {"role": "GPT4mini?", "content": message_interviewer}
     )
 
     # Store initial backup
@@ -133,28 +98,16 @@ if st.session_state.interview_active:
             message_placeholder = st.empty()
             message_interviewer = ""
 
-            if api == "openai":
-                stream = client.chat.completions.create(**api_kwargs)
-                for message in stream:
-                    text_delta = message.choices[0].delta.content
-                    if text_delta:
-                        message_interviewer += text_delta
-                    if len(message_interviewer) > 5:
-                        message_placeholder.markdown(message_interviewer + "▌")
-                    if any(code in message_interviewer for code in config.CLOSING_MESSAGES.keys()):
-                        message_placeholder.empty()
-                        break
-
-            elif api == "anthropic":
-                with client.messages.stream(**api_kwargs) as stream:
-                    for text_delta in stream.text_stream:
-                        if text_delta:
-                            message_interviewer += text_delta
-                        if len(message_interviewer) > 5:
-                            message_placeholder.markdown(message_interviewer + "▌")
-                        if any(code in message_interviewer for code in config.CLOSING_MESSAGES.keys()):
-                            message_placeholder.empty()
-                            break
+            stream = client.chat.completions.create(**api_kwargs)
+            for message in stream:
+                text_delta = message.choices[0].delta.content
+                if text_delta:
+                    message_interviewer += text_delta
+                if len(message_interviewer) > 5:
+                    message_placeholder.markdown(message_interviewer + "▌")
+                if any(code in message_interviewer for code in config.CLOSING_MESSAGES.keys()):
+                    message_placeholder.empty()
+                    break
 
             if not any(code in message_interviewer for code in config.CLOSING_MESSAGES.keys()):
                 message_placeholder.markdown(message_interviewer)
@@ -182,12 +135,8 @@ if st.session_state.interview_active:
                             username=st.session_state.username,
                             transcripts_directory=config.TRANSCRIPTS_DIRECTORY,
                         )
-                       #final_transcript_stored = check_if_interview_completed(config.TRANSCRIPTS_DIRECTORY, st.session_state.username)
                         time.sleep(0.1)
                         retries += 1
-
-                    if retries == max_retries:
-                        st.error("Error: Interview transcript could not be saved properly!")
 
                     save_interview_data_to_drive(
                         os.path.join(config.TRANSCRIPTS_DIRECTORY, f"{st.session_state.username}.txt")
