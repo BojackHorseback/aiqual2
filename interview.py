@@ -11,8 +11,8 @@ import config
 import pytz
 
 from datetime import datetime
-from openai import OpenAI
-api = "openai"
+from openai import OpenAI ##
+api = "openai" ##
 
 # Set page title and icon
 st.set_page_config(page_title="Interview - OpenAI", page_icon=config.AVATAR_INTERVIEWER)
@@ -22,7 +22,7 @@ central_tz = pytz.timezone("America/Chicago")
 current_datetime = datetime.now(central_tz).strftime("%Y-%m-%d (%H:%M:%S)")
 
 # Set the username with current_datetime
-st.session_state.username = f"OpenAI (Backup) - {current_datetime}"
+st.session_state.username = f"OpenAI (Backup) - {current_datetime}" ##
 
 # Create directories if they do not already exist
 for directory in [config.TRANSCRIPTS_DIRECTORY, config.BACKUPS_DIRECTORY]:
@@ -38,7 +38,9 @@ with col2:
     if st.session_state.interview_active and st.button("Quit", help="End the interview."):
         st.session_state.interview_active = False
         st.session_state.messages.append({"role": "assistant", "content": "You have cancelled the interview."})
-        save_interview_data(st.session_state.username, config.TRANSCRIPTS_DIRECTORY, config.TIMES_DIRECTORY)
+        save_interview_data_to_drive(
+                        os.path.join(config.TRANSCRIPTS_DIRECTORY, f"{st.session_state.username}-INCOMPLETE.txt")
+                    )
 
 # Display previous conversation (except system prompt)
 for message in st.session_state.messages[1:]:
