@@ -20,14 +20,17 @@ current_datetime = datetime.now(central_tz).strftime("%Y-%m-%d (%H:%M:%S)")
 
 #Bunch o stuff
 if "gpt" in config.MODEL.lower(): #Check config for API type
-    api = "openai" #Set API type
     from openai import OpenAI #Import API specific library
-    client = OpenAI(api_key=st.secrets["API_KEY"])
-    api_kwargs = {"stream": True}
+    api = "openai" #Set API type
+    st.session_state.username = "OpenAI" #Set usermame
+    client = OpenAI(api_key=st.secrets["API_KEY"]) #Get API key from secrets
+    api_kwargs = {"stream": True} #idk
     st.set_page_config(page_title="Interview - OpenAI", page_icon=config.AVATAR_INTERVIEWER) #Set page title and icon
-elif "claude" in config.MODEL.lower(): #Same as above
-    api = "anthropic"
+
+elif "claude" in config.MODEL.lower(): #Same as above, kinda
     import anthropic
+    api = "anthropic"
+    st.session_state.username = "OpenAI"
     client = anthropic.Anthropic(api_key=st.secrets["API_KEY"])
     api_kwargs = {"system": config.SYSTEM_PROMPT}
     st.set_page_config(page_title="Interview - Anthropic", page_icon=config.AVATAR_INTERVIEWER)
