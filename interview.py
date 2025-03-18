@@ -31,7 +31,7 @@ elif "claude" in config.MODEL.lower(): #Same as above
     client = anthropic.Anthropic(api_key=st.secrets["API_KEY"])
     api_kwargs = {"system": config.SYSTEM_PROMPT}
     st.set_page_config(page_title="Interview - Anthropic", page_icon=config.AVATAR_INTERVIEWER)
-
+    )
 
 # Create directories if they do not already exist
 for directory in [config.TRANSCRIPTS_DIRECTORY, config.BACKUPS_DIRECTORY]:
@@ -60,7 +60,32 @@ api_kwargs.update({
 if config.TEMPERATURE is not None:
     api_kwargs["temperature"] = config.TEMPERATURE
 
+# Initialize first system message if history is empty
+if not st.session_state.messages:
+    st.session_state.messages.append({"role": "system", "content": config.SYSTEM_PROMPT})
+    with st.chat_message("assistant", avatar=config.AVATAR_INTERVIEWER):
+        stream = client.chat.completions.create(**api_kwargs)
+        message_interviewer = st.write_stream(stream)
+    st.session_state.messages.append({"role": "assistant", "content": message_interviewer})
 
+# In case the interview history is still empty, pass system prompt to model, and
+# generate and display its first message
+if not st.session_state.messages:
+    st.session_state.messages.append(
+        {"role": "system", "content": config.SYSTEM_PROMPT}
+    )
+    with st.chat_message("GPT4mini", avatar=config.AVATAR_INTERVIEWER):
+        stream = client.chat.completions.create(**api_kwargs)
+        message_interviewer = st.write_stream(stream)
+    st.session_state.messages.append(
+    {"role": "GPT4mini", "content": message_interviewer}
+    )
+
+    # Store initial backup
+    save_interview_data(
+        username=st.session_state.username,
+        transcripts_directory=config.BACKUPS_DIRECTORY,
+    )
 # Main chat if interview is active
 if st.session_state.interview_active:
     if message_respondent := st.chat_input("Your message here"):
