@@ -1,4 +1,5 @@
-#interview.py - OpenAI (Saving to Google Drive)
+#interview.py - OpenAI - Saving to Google Drive
+## at the end of a line denotes the line needs to be updated if the API changes
 
 import streamlit as st
 import time
@@ -9,20 +10,28 @@ from utils import (
 import os
 import config
 import pytz
-
 from datetime import datetime
-from openai import OpenAI ##
-api = "openai" ##
 
-# Set page title and icon
-st.set_page_config(page_title="Interview - OpenAI", page_icon=config.AVATAR_INTERVIEWER)
 
 # Define Central Time and get current_datetime
 central_tz = pytz.timezone("America/Chicago")
 current_datetime = datetime.now(central_tz).strftime("%Y-%m-%d (%H:%M:%S)")
 
-# Set the username with current_datetime
-st.session_state.username = f"OpenAI (Backup) - {current_datetime}" ##
+
+#Bunch o stuff
+if "gpt" in config.MODEL.lower(): #Check config for API type
+    api = "openai" #Set API type
+    from openai import OpenAI #Import API specific library
+    client = OpenAI(api_key=st.secrets["API_KEY"])
+    api_kwargs = {"stream": True}
+    st.set_page_config(page_title="Interview - OpenAI", page_icon=config.AVATAR_INTERVIEWER) #Set page title and icon
+elif "claude" in config.MODEL.lower(): #Same as above
+    api = "anthropic"
+    import anthropic
+    client = anthropic.Anthropic(api_key=st.secrets["API_KEY"])
+    api_kwargs = {"system": config.SYSTEM_PROMPT}
+    st.set_page_config(page_title="Interview - Anthropic", page_icon=config.AVATAR_INTERVIEWER)
+    )
 
 # Create directories if they do not already exist
 for directory in [config.TRANSCRIPTS_DIRECTORY, config.BACKUPS_DIRECTORY]:
@@ -42,17 +51,6 @@ with col2:
                         os.path.join(config.TRANSCRIPTS_DIRECTORY, f"{st.session_state.username}-INCOMPLETE.txt")
                     )
 
-# Display previous conversation (except system prompt)
-for message in st.session_state.messages[1:]:
-    avatar = config.AVATAR_INTERVIEWER if message["role"] == "assistant" else config.AVATAR_RESPONDENT
-    if not any(code in message["content"] for code in config.CLOSING_MESSAGES.keys()):
-        with st.chat_message(message["role"], avatar=avatar):
-            st.markdown(message["content"])
-
-# Load API client
-client = OpenAI(api_key=st.secrets["API_KEY"])
-api_kwargs = {"stream": True}
-
 # API kwargs
 api_kwargs.update({
     "messages": st.session_state.messages,
@@ -62,32 +60,7 @@ api_kwargs.update({
 if config.TEMPERATURE is not None:
     api_kwargs["temperature"] = config.TEMPERATURE
 
-# Initialize first system message if history is empty
-if not st.session_state.messages:
-    st.session_state.messages.append({"role": "system", "content": config.SYSTEM_PROMPT})
-    with st.chat_message("assistant", avatar=config.AVATAR_INTERVIEWER):
-        stream = client.chat.completions.create(**api_kwargs)
-        message_interviewer = st.write_stream(stream)
-    st.session_state.messages.append({"role": "assistant", "content": message_interviewer})
 
-# In case the interview history is still empty, pass system prompt to model, and
-# generate and display its first message
-if not st.session_state.messages:
-    st.session_state.messages.append(
-        {"role": "system", "content": config.SYSTEM_PROMPT}
-    )
-    with st.chat_message("GPT4mini", avatar=config.AVATAR_INTERVIEWER):
-        stream = client.chat.completions.create(**api_kwargs)
-        message_interviewer = st.write_stream(stream)
-    st.session_state.messages.append(
-    {"role": "GPT4mini?", "content": message_interviewer}
-    )
-
-    # Store initial backup
-    save_interview_data(
-        username=st.session_state.username,
-        transcripts_directory=config.BACKUPS_DIRECTORY,
-    )
 # Main chat if interview is active
 if st.session_state.interview_active:
     if message_respondent := st.chat_input("Your message here"):
