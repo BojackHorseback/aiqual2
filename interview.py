@@ -31,7 +31,7 @@ elif "claude" in config.MODEL.lower(): #Same as above
     client = anthropic.Anthropic(api_key=st.secrets["API_KEY"])
     api_kwargs = {"system": config.SYSTEM_PROMPT}
     st.set_page_config(page_title="Interview - Anthropic", page_icon=config.AVATAR_INTERVIEWER)
-    )
+
 
 # Create directories if they do not already exist
 for directory in [config.TRANSCRIPTS_DIRECTORY, config.BACKUPS_DIRECTORY]:
